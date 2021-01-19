@@ -59,6 +59,7 @@ import signal
 import select
 from distutils.version import StrictVersion
 from re import findall
+import mininet.vmlib
 from subprocess import Popen, PIPE
 from sys import exit  # pylint: disable=redefined-builtin
 from time import sleep
@@ -1595,3 +1596,67 @@ def DefaultController( name, controllers=DefaultControllers, **kwargs ):
 def NullController( *_args, **_kwargs ):
     "Nonexistent controller - simply returns None"
     return None
+
+
+
+class vNode( Node ):
+    """ A vNode (Virtualised Node) is a shell in a paravirtualized Xen DomU (Guest)
+        Currently, only x86_64 Alpine is supported as an OS"""
+
+    def __init__( self, name, os_name, **params):
+        self.os_name = os_name
+        self.addr = None
+        self.user = root
+
+        vmlib.createVMNode('h1', 2048)
+
+
+    def startShell(self, user, host, mnopts=None):
+        """
+        Start a shell process over SSH for running commands
+        Host must accept root login via ssh key to work.
+        """
+        if self.shell:
+            error( "%s: shell is already running\n" % self.name )
+            return
+        #Create SSH process to VM.
+        self.master, self.slave = pty.openpty()
+        #might be Popen not _popen?
+        self.shell = self.Popen( f'ssh {self.user}@{host}', stdin=self.slave, stdout=self.slave, 
+                                   stderr=self.slave, close_fds=False)
+
+        self.stdin = os.fdopen(self.master, 'r')
+        self.stdout = self.stdin
+        self.pid = self.shell.pid
+        self.pollOut = select.poll()
+        self.pollOut.register( self.stdout )
+
+        self.outToNode[ self.stdout.fileno() ] = self
+        self.inToNode[ self.stdin.fileno() ] = self
+        self.execed = False
+        self.lastCmd = None
+        self.lastPid = None
+        self.readbuf = ''
+        # Wait for prompt
+        while True:
+            data = self.read( 1024 )
+            if data[ -1 ] == chr( 127 ):
+                break
+            self.pollOut.poll()
+        self.waiting = False
+
+
+    def terminate( self ):
+        #self.unmountPrivateDirs()
+        if self.shell:
+            if self.shell.poll() is None:
+                self.shell.terminate()
+                vmlib.destroy(self.name)
+        #self.cleanup()
+
+    def mountPrivateDirs( self ):
+        return False
+
+    def unmountPrivateDirs( self ):
+        return False
+
