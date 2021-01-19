@@ -1644,3 +1644,5 @@ class vNode( Node ):
     def unmountPrivateDirs( self ):
         return False
 
+    def pollForShell( self ):
+        #run pexec until shell obtained then run startshell
