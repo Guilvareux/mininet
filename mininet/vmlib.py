@@ -6,9 +6,13 @@ from xml.etree import ElementTree as etree
 vms = {}
 respath = '../virtual/res/'
 vmspath = '../virtual/vms/'
-mountpath = '/mnt/alpine/'
 
+interfaceXML = """
+<interface>
+</interface>
+"""
 
+#destroy VM
 def destroy(hostname):
   conn = getLibvirtConn()
   target = conn.lookupByName(hostname)
@@ -20,7 +24,7 @@ def destroy(hostname):
     target.shutdown()
     return True
 
-
+#Get MAC address from domainxml dump
 def getMAC(hostname):
   conn = getLibvirtConn()
   target = lookupByName(hostname)
@@ -34,9 +38,8 @@ def getMAC(hostname):
   return root.find('mac').get('address')
 
 
+#Get Libvirt connection - Currently assumes libvirtd is insecure 'xen+tcp'
 def getLibvirtConn():
-  ''' Currently, assumes libvirtd is unsecured
-  '''
   try:
     conn = libvirt.open('xen+tcp:///')
     return conn
@@ -45,7 +48,8 @@ def getLibvirtConn():
     sys.exit(1)
 
 
-def generateXML(hostname, vmemory=2048, vcpu=1, os_name=alpine):
+#Create domain xml
+def generateXML(hostname, vmemory=2048, vcpu=1, os_name=alpine, disk=None):
   kernel = mountpath + 'boot/vmlinuz-virt'
   initrd = mountpath + 'boot/initramfs-virt'
   pvgrub = '/usr/lib/grub-xen/grub-x86_64-xen.bin'
@@ -64,21 +68,32 @@ def generateXML(hostname, vmemory=2048, vcpu=1, os_name=alpine):
   disk1.set('type', 'file')
   disk1.set('device', 'disk')
   disksrc = ET.SubElement(disk1, 'source')
-  disksrc.set('file', createVMDisk(hostname, os_name))
+  if disk == None:
+    disksrc.set('file', createVMDisk(hostname, os_name))
+  else:
+    docksrc.set('file', disk)
+    
   disk1target = ET.SubElement(disk1, 'target')
   disk1target.set('dev', 'xvda')
   defaultxml.write(f"{vmspath}{vmname}/{vmname}.xml")
 
 
+#Create disk and boot domain
 def createVMNode(hostname, vmemory, vcpu=1, os_name="alpine"):
   os.mkdir(vmpath + os_name)
   generateXML(hostname, vmemory, vcpu, os_name)
   createVMDisk(hostname, os_name)
   conn.getLibvirtConn()
-  conn.createXML(respath+'/defaultsetup.xml', 0)
+  guest = conn.createXML(respath+'/defaultsetup.xml', 0)
+  if guest != None:
+    if hostname not in vms:
+      vms[hostname] = "Node"
+    else:
+      print('Node already exists in dict')
   conn.close()
 
 
+#Copy base image and run 
 def createVMDisk(hostname, os_name):
   disk = f"{vmspath}{vmname}/{vmname}.img"
   diskpath = os.path.abspath(disk)
@@ -86,3 +101,34 @@ def createVMDisk(hostname, os_name):
     shutil.copyfile(respath + 'disks/alpine-base.img', diskpath)
     return diskpath
 
+
+#Update a device on a running domain.
+def updateDevice(hostname):
+  #Add xml parse
+  xml = ''
+  conn = getLibvirtConn()
+  target = conn.lookupByName(hostname)
+  if target == None:
+    print('Error: Host not found')
+    conn.close()
+    return False
+  else:
+    target.updateDeviceFlags(xml)
+    return True
+  conn.close()
+
+#Create domainxml to update an interface on a live running vm
+def updateInterface(hostname, name, inttype, mac=None, ip=None, source):
+  base = ET.parse(interfaceXML)
+  tree = base.getroot()
+  if name:
+    tree.set('name', name)
+  if inttype:
+    tree.set('type', inttype)
+  if mac != None:
+    xmlmac = ET.SubElement(tree, 'mac')
+    xmlmac.set('address', mac)
+  if source:
+    xmlsource = ET.SubElement(tree, 'source')
+
+  updateDevice(hostname)
