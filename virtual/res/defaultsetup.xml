@@ -1,0 +1,17 @@
+<domain type='xen'>
+  <name>fvTree</name>
+  <os>
+    <type>linux</type>
+    <kernel>/usr/lib/grub-xen/grub-x86_64-xen.bin</kernel>
+  </os>
+  <memory unit='MiB'>1</memory>
+  <vcpu>1</vcpu>
+  <on_poweroff>destroy</on_poweroff>
+  <devices>
+    <emulator>/usr/bin/qemu-system-x86_64</emulator>
+    <interface type='network'>
+      <source network='default' />
+    </interface>
+    <graphics type='vnc' port='5904' />
+  </devices>
+</domain>

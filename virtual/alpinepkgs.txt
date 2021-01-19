@@ -1,0 +1,10 @@
+libvirt-dev
+libvirt-daemon
+qemu-system-x86_64
+xen-hypervisor
+virt-manager
+gcc
+musl-dev
+python3-dev
+grub-xenhost
+seabios
