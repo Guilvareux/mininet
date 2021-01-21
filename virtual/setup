@@ -39,14 +39,14 @@ else
 fi
 
 
-if [ $OS == "Debian GNU/Linux" ] && [ $VER = "10" ]; then
-  REQPKS="./debianpkgs.txt"
+if [ "$OS" == "Debian GNU/Linux" ] && [ "$VER" == "10" ]; then
+  REQPKGS="./debianpkgs.txt"
   PKGSTRING="apt install -y"
   PKGS=""
-  while file= read -r line; do
-    PKGS+="${line}"
+  while read -r line; do
+    PKGS+=" ${line}"
   done < "$REQPKGS"
-  $($PKGSTRING $PKGS)
+  eval "${PKGSTRING}${PKGS}"
   RESULT=$?
   if [ $RESULT == 0 ]; then
     echo "All packaged installed"
@@ -58,5 +58,3 @@ fi
 #Add auto-config setup for libvirtd, ssh? and xenbr0
 
 #Download Base images from hosting
-
-#

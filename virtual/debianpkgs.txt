@@ -1,3 +1,5 @@
 xen-system
 libvirt-daemon-system
 python-libvirt
+python3-openvswitch
+qemu-system
