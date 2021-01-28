@@ -1,13 +1,14 @@
 #!/bin/bash
 
-egrep '(vmx|svm)' /proc/cpuinfo 2>&1 >/dev/null
+VIRTENABLED="$(egrep '(vmx|svm)' /proc/cpuinfo 2>&1 > /dev/null)"
 
+#Test Virtualization enabled
 if [ $? == 1 ]; then
-  echo "Has virtualization been enabled?"
-  exit 1
+    echo "Has hardware virtualization been enabled?"
+    exit 1
 fi
 
-
+#Determine Host OS
 if [ -f /etc/os-release ]; then
     # freedesktop.org and systemd
     . /etc/os-release
@@ -38,23 +39,62 @@ else
     VER=$(uname -r)
 fi
 
+#Edit dnsmasq configuration file
+function edit_dnsmasq {
+  echo 'edit dnsmasq'
+  return 0
+}
 
-if [ "$OS" == "Debian GNU/Linux" ] && [ "$VER" == "10" ]; then
-  REQPKGS="./debianpkgs.txt"
-  PKGSTRING="apt install -y"
-  PKGS=""
-  while read -r line; do
-    PKGS+=" ${line}"
-  done < "$REQPKGS"
-  eval "${PKGSTRING}${PKGS}"
-  RESULT=$?
-  if [ $RESULT == 0 ]; then
-    echo "All packaged installed"
-  fi
+#Edit libvirtd configuration file
+function edit_libvirtd {
+  echo 'edit libvirtd'
+  return 0
+}
+
+#Test for pre-installation. Setup may accidentally overwrite configuration files
+DNSMASQI="$(dpkg -s dnsmasq 2>&1 > /dev/null)"
+LIBVIRTI="$(dpkg -s libvirt-daemon-system 2>&1 > /dev/null)"
+if [ "$DNSMASQI" == 0 ]; then
+    echo 'WARNING: dnsmasq is already installed, have you backed up dnsmasq.conf'
+    read -rsn1 "Do you wish to continue?... (y/N)" INPUT
+    if [ "$INPUT" == "y" ] || [ "$INPUT" == "Y" ]; then
+        edit_dnsmasq
+    fi    
+fi
+if [ "$LIBVIRTI" == 0 ]; then
+    echo 'WARNING: libvirt-daemon-system already installed, have you backed up libvirtd.conf?'
+    read -rsn1 "Do you wish to continue?... (y/N)" INPUT
+    if [ "$INPUT" == "y" ] || [ "$INPUT" == "Y" ]; then
+        edit_libvirtd
+    fi
 fi
 
+#Install all necessary packages for Debian
+if [ "$OS" == "Debian GNU/Linux" ] && [ "$VER" == "10" ]; then
+    REQPKGS="./debianpkgs.txt"
+    PKGSTRING="apt install -y"
+    PKGS=""
+    while read -r line; do
+      PKGS+=" ${line}"
+    done < "$REQPKGS"
+    eval "${PKGSTRING}${PKGS}"
+    RESULT=$?
+    if [ $RESULT == 0 ]; then
+      echo "All packaged installed"
+    fi
+fi
 
+#Reboot necessary?
+USER="$(whoami)"
+SUDO=""
+if [ "$USER" == "root" ]; then
+    $SUDO = "sudo "
+fi
+XENINSTALL="$(${SUDO}xl list \| grep Domain-0)"
+if [ "$XENINSTALL" == "Domain-0" ]; then
+    echo 'Host already running as Domain-0'
+else
+    echo 'Xen has been installed, restart and boot into Xen Hypervisor'
+fi
 
-#Add auto-config setup for libvirtd, ssh? and xenbr0
-
-#Download Base images from hosting
+exit 0
