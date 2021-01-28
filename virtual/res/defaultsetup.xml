@@ -9,8 +9,9 @@
   <on_poweroff>destroy</on_poweroff>
   <devices>
     <emulator>/usr/bin/qemu-system-x86_64</emulator>
-    <interface type='network'>
-      <source network='default' />
+    <interface type='bridge'>
+      <source bridge='mininet-bridge' />
+      <virtualport type='openvswitch' />
     </interface>
     <graphics type='vnc' port='5904' />
   </devices>
