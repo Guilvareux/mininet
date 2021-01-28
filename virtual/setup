@@ -50,9 +50,9 @@ while [ "$HYPERVISOR" == "" ]; do
     echo 'Would you like to use KVM or Xen as the hypervisor?... (Xen/KVM)'
     read INPUT
     if [ "$INPUT" == "Xen" ] || [ "$INPUT" == "xen" ]; then
-        $HYPERVISOR="XEN"
+        HYPERVISOR="XEN"
     elif [ "$INPUT" == "KVM" ] || [ "$INPUT" == "kvm" ]; then
-        $HYPERVISOR="KVM"
+        HYPERVISOR="KVM"
     else
         echo "Error: Input invalid. Please choose between (Xen/KVM)"
     fi
