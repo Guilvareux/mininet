@@ -57,9 +57,10 @@ import pty
 import re
 import signal
 import select
-import mininet.vmlib
-from subprocess import Popen, PIPE
+import libvirt
+from subprocess import Popen, PIPE, run
 from time import sleep
+from xml.etree import ElementTree as etree
 
 from mininet.log import info, error, warn, debug
 from mininet.util import ( quietRun, errRun, errFail, moveIntf, isShellBuiltin,
@@ -1519,7 +1520,7 @@ class RemoteController( Controller ):
     "Controller running outside of Mininet's control."
 
     def __init__( self, name, ip='127.0.0.1',
-                  port=None, **kwargs):
+                  port=None, **kwargs ):
         """Init.
            name: name to give controller
            ip: the IP address where the remote controller is
@@ -1583,51 +1584,30 @@ def NullController( *_args, **_kwargs ):
 
 
 
-class vNode( Node ):
-    """ A vNode (Virtualised Node) is a shell in a paravirtualized Xen DomU (Guest)
-        Currently, only x86_64 Alpine is supported as an OS"""
+class vNode( object ):
+    """ A vNode (Virtualized Node) is a Virtual Machine, connected to 
+    mininet via an OpenVSwitch bridge. """
 
-    def __init__( self, name, os_name, **params):
-        self.os_name = os_name
-        self.addr = None
-        self.user = root
+    def __init__( self, name, domxml=None, **kwargs ):
 
-        vmlib.createVMNode('h1', 2048)
+        self.name = name
+        self.domID = None
 
+        if domxml != None:
+            if validateXML( self, domxml ) != True:
+                return False
+            
+            getXMLInfo( self, domxml )
 
-    def startShell(self, user, host, mnopts=None):
-        """
-        Start a shell process over SSH for running commands
-        Host must accept root login via ssh key to work.
-        """
-        if self.shell:
-            error( "%s: shell is already running\n" % self.name )
-            return
-        #Create SSH process to VM.
-        self.master, self.slave = pty.openpty()
-        #might be Popen not _popen?
-        self.shell = self.Popen( f'ssh {self.user}@{host}', stdin=self.slave, stdout=self.slave, 
-                                   stderr=self.slave, close_fds=False)
+            if 'ip' in kwargs:
+                #Set ip in dnsmasq
 
-        self.stdin = os.fdopen(self.master, 'r')
-        self.stdout = self.stdin
-        self.pid = self.shell.pid
-        self.pollOut = select.poll()
-        self.pollOut.register( self.stdout )
+            dom = createVM(domxml)
+            if dom == None || dom.ID() != -1:
+                debug('Failed to create host')
+            else:
+                self.domID = dom.ID()
 
-        self.outToNode[ self.stdout.fileno() ] = self
-        self.inToNode[ self.stdin.fileno() ] = self
-        self.execed = False
-        self.lastCmd = None
-        self.lastPid = None
-        self.readbuf = ''
-        # Wait for prompt
-        while True:
-            data = self.read( 1024 )
-            if data[ -1 ] == chr( 127 ):
-                break
-            self.pollOut.poll()
-        self.waiting = False
 
 
     def terminate( self ):
@@ -1637,12 +1617,102 @@ class vNode( Node ):
                 self.shell.terminate()
                 vmlib.destroy(self.name)
         #self.cleanup()
+        
+    def _is_machine_running( self ):
+        conn = vmlib.getLibvirtConn()
+        if conn == None:
+            print('Failed to open connection to libvirtd')
+        else:
+            dom = conn.lookupByName(self.name)
+            if dom != None:
+                debug('Machine is running.')
 
-    def mountPrivateDirs( self ):
-        return False
+    def validateXML( self, domxml ):
+        base = ET.parse(domxml)
+        root = base.getroot()
+        #Change VM name to name specified for easy lookup.
+        root.find('name').text = self.name
+        result = subprocess.run('virt-xml-validate domxml', capture_output)
+        if result.returncode == 0:
+            return True
+        else:
+            #Forward Error message from virt-xml-validate: todo
+            debug( 'Error: XML File Invalid' )
+            return False
+    
+    def getXMLInfo( self, domxml ):
+        base = ET.parse(domxml)
+        root = base.getroot()
+        self.name = root.find('name').text
+        hypervisor = root.find('domain').get('type')
+        if hypervisor.upper() == 'XEN':
+            self.domtype = 'xen'
+        elif hypervisor.upper() == 'KVM'
+            self.domtype = 'kvm'
+        else:
+            debug('Error: Unknown Hypervisor')
+    
+    def createVM( domxml ):
+        guest = conn.createXML(domxml, 0)
+        if guest != None:
+            debug('Node successfully created')
 
-    def unmountPrivateDirs( self ):
-        return False
+    def getLibvirtConn( self ):
+        hyperv = self.domtype
+        if !self.domtype:
+            debug('Error: Hypervisor info was not extracted')
+            return False
+        try:
+            if hyperv = 'kvm':
+                hyperv = 'qemu'
+            conn = libvirt.open(f'{hyperv}+unix:///')
+            return conn
+        except:
+            print('Failed to acquire connection to hypervisor')
+            sys.exit(1)
 
-    def pollForShell( self ):
-        #run pexec until shell obtained then run startshell
+    def MAC( self ):
+        conn = getLibvirtConn()
+        target = lookupByName( self.name )
+        if target == None:
+            print('Error: Target VM not found')
+            return False
+        raw_XML = target.XMLDesc(0)
+        conn.close()
+        xml = ET.parse(raw_XML)
+        root = xml.getroot()
+        return root.find('mac').get('address')
+    
+    def terminate():
+        conn = getLibvirtConn()
+        target = conn.lookupByName(self.name)
+        if target == None:
+            print('Error: Host not found')
+            conn.close()
+            return False
+        else:
+            target.shutdown()
+            return True
+
+    def IP( self ):
+        "Return IP address"
+        return self.ip
+
+    def MAC( self ):
+        "Return MAC address"
+        return self.mac
+
+    def setIP():
+        "Set static IP in dnsmasq.leases"
+        
+
+    
+
+
+    #Return IP Address from dnsmasq.conf
+    #def IP( self, intf=None ):
+
+    #Set/Change static ip for self.mac
+    #Set/Change MAC for guest.
+
+    
