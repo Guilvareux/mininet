@@ -884,7 +884,7 @@ function usage {
     printf -- ' -x: install NO(X) Classic OpenFlow controller\n' >&2
     printf -- ' -0: (default) -0[fx] installs OpenFlow 1.0 versions\n' >&2
     printf -- ' -3: -3[fx] installs OpenFlow 1.3 versions\n' >&2
-    printf -- ' -z: <hypervisor>: install a hypervisor to run virtualized nodes (Ubuntu/Debian)'
+    printf -- ' -z: <hypervisor>: install a hypervisor to run virtualized nodes (Ubuntu/Debian)' >&2
     exit 2
 }
 
