@@ -793,8 +793,30 @@ exit 0
 
 }
 
+function virtual_support {
+
+    if [ "$DIST" != "Ubuntu" ] && [ "$DIST" != "Debian" ]; then
+        echo "Virtual Support is only enabled for Debian and Ubuntu hosts at this time"
+        return
+    fi
+
+    echo "Installing Virtual Host Support..."
+
+    if [ "$HYPERVISOR" = "xen"] || [ "$HYPERVISOR" = "Xen"]; then
+        echo "Installing Xen Hypervisor..."
+        $install xen-system
+    elif [ "$HYPERVISOR" = "kvm"] || [ "$HYPERVISOR" = "KVM"]; then
+        echo "Installing KVM Hypervisor..."
+    else
+        echo "Invalid parameter: '-z $HYPERVISOR'"
+        return
+        
+    $install libvirt-daemon-system python-libvirt /
+        qemu-system dnsmasq
+}
+
 function usage {
-    printf '\nUsage: %s [-abcdfhikmnprtvVwxy03]\n\n' $(basename $0) >&2
+    printf '\nUsage: %s [-abcdfhikmnprtvVwxy03z]\n\n' $(basename $0) >&2
 
     printf 'This install script attempts to install useful packages\n' >&2
     printf 'for Mininet. It should (hopefully) work on Ubuntu 11.10+\n' >&2
@@ -825,6 +847,7 @@ function usage {
     printf -- ' -x: install NO(X) Classic OpenFlow controller\n' >&2
     printf -- ' -0: (default) -0[fx] installs OpenFlow 1.0 versions\n' >&2
     printf -- ' -3: -3[fx] installs OpenFlow 1.3 versions\n' >&2
+    printf -- ' -z: <hypervisor>: install a hypervisor to run virtualized nodes (Ubuntu/Debian)'
     exit 2
 }
 
@@ -834,7 +857,7 @@ if [ $# -eq 0 ]
 then
     all
 else
-    while getopts 'abcdefhikmnprs:tvV:wxy03' OPTION
+    while getopts 'abcdefhikmnprs:tvV:wxy03z:' OPTION
     do
       case $OPTION in
       a)    all;;
@@ -868,6 +891,8 @@ else
             *)  echo "Invalid OpenFlow version $OF_VERSION";;
             esac;;
       y)    ryu;;
+      z)    HYPERVISOR=$OPTARG;
+            virtual_support;;
       0)    OF_VERSION=1.0;;
       3)    OF_VERSION=1.3;;
       ?)    usage;;
