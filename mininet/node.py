@@ -1583,31 +1583,50 @@ def NullController( *_args, **_kwargs ):
     return None
 
 
-
 class vNode( object ):
     """ A vNode (Virtualized Node) is a Virtual Machine, connected to 
     mininet via an OpenVSwitch bridge. """
 
-    def __init__( self, name, domxml=None, **kwargs ):
+    def __init__( self, name=None, domxml=None, **kwargs ):
 
         self.name = name
         self.domID = None
 
-        if domxml != None:
-            if validateXML( self, domxml ) != True:
+        defaults = {
+            'ip': None,
+            'mac': None
+        }
+        defaults.update( kwargs )
+
+        self.ip = defaults['ip']
+        self.mac = defaults['mac']
+
+        if domxml == None:
+            print("Info: XML file not given")
+            if name == None:
+                print("Error: No name given. Hosts not defined with xml must be given a name")
+            return False
+        else:
+            if self.validateXML( domxml ) != True:
+                print("Error: XML failed to validate")
+                #Return debug info here
                 return False
             
-            getXMLInfo( self, domxml )
+            self.getXMLInfo( domxml )
+            if self.mac == None:
+                print("No MAC")
+                #MAC = random mac
+            if self.ip != None:
+                #Call dnsmasq leasehandler
+                self.ip = '10.3.0.30'
+                self.addLease( self.mac, self.ip )
 
-            if 'ip' in kwargs:
-                #Set ip in dnsmasq
-
-            dom = createVM(domxml)
-            if dom == None || dom.ID() != -1:
-                debug('Failed to create host')
+            dom = self.createVM( domxml )
+            if dom == None or dom.ID() != -1:
+                print('Failed to create host')
             else:
                 self.domID = dom.ID()
-
+                print('Node succesfully started')
 
 
     def terminate( self ):
@@ -1619,51 +1638,56 @@ class vNode( object ):
         #self.cleanup()
         
     def _is_machine_running( self ):
-        conn = vmlib.getLibvirtConn()
+        conn = vmlib.self.getLibvirtConn()
         if conn == None:
             print('Failed to open connection to libvirtd')
         else:
             dom = conn.lookupByName(self.name)
             if dom != None:
-                debug('Machine is running.')
+                print('Machine is running.')
 
     def validateXML( self, domxml ):
         base = ET.parse(domxml)
         root = base.getroot()
         #Change VM name to name specified for easy lookup.
         root.find('name').text = self.name
-        result = subprocess.run('virt-xml-validate domxml', capture_output)
+        result = subprocess.run(['virt-xml-validate', domxml])
         if result.returncode == 0:
             return True
         else:
             #Forward Error message from virt-xml-validate: todo
-            debug( 'Error: XML File Invalid' )
+            print( 'Error: XML File Invalid' )
             return False
     
     def getXMLInfo( self, domxml ):
         base = ET.parse(domxml)
         root = base.getroot()
         self.name = root.find('name').text
-        hypervisor = root.find('domain').get('type')
+        self.mac = root.find('devices').find('interface').find('mac').get('address')
+        hypervisor = root.get('type')
         if hypervisor.upper() == 'XEN':
             self.domtype = 'xen'
-        elif hypervisor.upper() == 'KVM'
+        elif hypervisor.upper() == 'KVM':
             self.domtype = 'kvm'
         else:
-            debug('Error: Unknown Hypervisor')
+            print('Error: Unknown Hypervisor')
     
-    def createVM( domxml ):
-        guest = conn.createXML(domxml, 0)
-        if guest != None:
-            debug('Node successfully created')
+    def createVM( self, domxml ):
+        conn = self.getLibvirtConn()
+        with open(domxml, 'r') as domstring:
+            domfile = domstring.read()
+            guest = conn.createXML(domfile, 0)
+            if guest != None:
+                print('Node successfully created')
+        return guest
 
     def getLibvirtConn( self ):
         hyperv = self.domtype
-        if !self.domtype:
-            debug('Error: Hypervisor info was not extracted')
+        if self.domtype == None:
+            print('Error: Hypervisor info was not extracted')
             return False
         try:
-            if hyperv = 'kvm':
+            if hyperv == 'kvm':
                 hyperv = 'qemu'
             conn = libvirt.open(f'{hyperv}+unix:///')
             return conn
@@ -1672,7 +1696,7 @@ class vNode( object ):
             sys.exit(1)
 
     def MAC( self ):
-        conn = getLibvirtConn()
+        conn = self.getLibvirtConn()
         target = lookupByName( self.name )
         if target == None:
             print('Error: Target VM not found')
@@ -1684,7 +1708,7 @@ class vNode( object ):
         return root.find('mac').get('address')
     
     def terminate():
-        conn = getLibvirtConn()
+        conn = self.getLibvirtConn()
         target = conn.lookupByName(self.name)
         if target == None:
             print('Error: Host not found')
@@ -1705,14 +1729,3 @@ class vNode( object ):
     def setIP():
         "Set static IP in dnsmasq.leases"
         
-
-    
-
-
-    #Return IP Address from dnsmasq.conf
-    #def IP( self, intf=None ):
-
-    #Set/Change static ip for self.mac
-    #Set/Change MAC for guest.
-
-    
