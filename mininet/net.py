@@ -99,7 +99,7 @@ from math import ceil
 from mininet.cli import CLI
 from mininet.log import info, error, debug, output, warn
 from mininet.node import ( Node, Host, OVSKernelSwitch, DefaultController,
-                           Controller )
+                           Controller, VNode )
 from mininet.nodelib import NAT
 from mininet.link import Link, Intf
 from mininet.util import ( quietRun, fixLimits, numCores, ensureRoot,
@@ -1000,3 +1000,82 @@ class MininetWithControlNet( Mininet ):
                 error( '*** Error: control network test failed\n' )
                 exit( 1 )
         info( '\n' )
+
+
+class Virtualnet( Mininet ):
+    """
+    A Mininet with Virtual Machine support (Libvirt)
+    and VM ip configuration with DHCP (dnsmasq)
+    """
+
+    self.dhcptable = {}
+    self.vnodes = []
+    
+    #Will be deprecated with container dnsmasq instance
+    # **Planned feature**
+    self.dhcpleasefile = '/var/lib/misc/dnsmasq.leases'
+
+
+    def __init__( self, **params ):
+        Mininet.__init__( self, **params )
+        
+    def addVNode( self, domxml, **params):
+        """Add a virtual node to the Mininet network
+           domxml: Path to libvirt xml file
+        """
+        defaults = {
+            'ip': None,
+            'mac': None
+        }
+        default.update( params )
+        if defaults['mac'] == None:
+            defaults['mac'] = randMac()
+
+        v = VNode(domxml, defaults)
+        self.vnodes.append( v )
+        return v
+
+    def removeVNode( self, name, **params ):
+        """
+        Remove VNode at runtime
+        """
+        print("WIP")
+
+
+    def addVLink( self, node1, node2, mac1, mac2,
+                 **params ):
+        """Links in Virtualnet are actually openflow mods.
+            All Virtual nodes are connected by an OVSSwitch
+            bridge, which disables all traffic by default.
+            a link is a flow mod which allows traffic between
+            two VNodes.
+            node1: first node ip address
+            node2: second node ip address
+            mac1: mac address of first node
+            mac2: mac address of second node
+        """
+        print("WIP")
+    
+    def addDHCPLease(self, mac, ip, expiry=1, hostname="*", clientID="*"):
+        #expirytime = datetime.now() + timedelta(hours = expiry)
+        expirytime = 1713751373
+
+        with open(self.dhcpleasefile) as dhcpconf:
+            text = dhcpconf.read()
+        with open(self.dhcpleasefile, 'a') as conf:
+            if not text.endswith('\n'):
+                conf.write('\n')
+            conf.write(f'{str(expirytime)}, {mac}, {ip}, {hostname}, {clientID}\n')
+
+        self.dhcptable.append({
+            self.name: {
+                'expiry': expirytime,
+                'mac': mac,
+                'ip': ip,
+                'hostname': hostname,
+                'clientID': clientID
+            }
+        })
+
+    
+    
