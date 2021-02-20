@@ -61,7 +61,6 @@ import libvirt
 from subprocess import Popen, PIPE, run
 from time import sleep
 from xml.etree import ElementTree as etree
-
 from mininet.log import info, error, warn, debug
 from mininet.util import ( quietRun, errRun, errFail, moveIntf, isShellBuiltin,
                            numCores, retry, mountCgroups, BaseString, decode,
@@ -1596,23 +1595,17 @@ def NullController( *_args, **_kwargs ):
     return None
 
 
-class vNode( object ):
+class VNode( object ):
     """ A vNode (Virtualized Node) is a Virtual Machine, connected to 
     mininet via an OpenVSwitch bridge. """
 
-    def __init__( self, name=None, domxml=None, **kwargs ):
+    def __init__( self, domxml, **kwargs ):
 
         self.name = name
         self.domID = None
 
-        defaults = {
-            'ip': None,
-            'mac': None
-        }
-        defaults.update( kwargs )
-
-        self.ip = defaults['ip']
-        self.mac = defaults['mac']
+        self.ip = kwargs.get('ip')
+        self.mac = kwargs.get('mac')
 
         if domxml == None:
             print("Info: XML file not given")
@@ -1632,11 +1625,12 @@ class vNode( object ):
             if self.ip != None:
                 #Call dnsmasq leasehandler
                 self.ip = '10.3.0.30'
-                self.addLease( self.mac, self.ip )
+                #self.addLease( mac=self.mac, ip=self.ip )
 
             dom = self.createVM( domxml )
-            if dom == None or dom.ID() != -1:
+            if dom == None and dom.ID() != -1:
                 print('Failed to create host')
+                return False
             else:
                 self.domID = dom.ID()
                 print('Node succesfully started')
@@ -1738,7 +1732,3 @@ class vNode( object ):
     def MAC( self ):
         "Return MAC address"
         return self.mac
-
-    def setIP():
-        "Set static IP in dnsmasq.leases"
-        
