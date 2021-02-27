@@ -58,7 +58,7 @@ import re
 import signal
 import select
 import libvirt
-from subprocess import Popen, PIPE, run
+from subprocess import Popen, PIPE
 from time import sleep
 from xml.etree import ElementTree as etree
 from mininet.log import info, error, warn, debug
@@ -1733,14 +1733,15 @@ class VNode( object ):
 
 class DHCPNode( Node ):
 
-    self.hostsfile = None
-    self.conffile = None
-    self.dnsmasqPopen = None
-
     def __init__( self, **params ):
         """
         """
+
         Node.__init__( self, name='dnsmasq')
+
+        self.hostsfile = None
+        self.conffile = None
+        self.dnsmasqPopen = None
 
         defaults = {
             'listenaddress': '10.1.0.0',
@@ -1760,14 +1761,14 @@ class DHCPNode( Node ):
     def start():
         opts = []
         opts.append('--port=0')
-        opts.append(f'--dhcp-range={defaults['dhcprange']},static,{defauls['netmask']}')
-        opts.append(f'--conf-file={self.conffile}')
+        opts.append('--dhcp-range={},static,{}'.format(defaults['dhcprange'],defaults['netmask']))
+        opts.append('--conf-file={}'.format(self.conffile))
         if defaults['hostsfile'] != None:
-            opts.append(f'--dhcp-hostsfile={defaults['hostsfile']}')
+            opts.append('--dhcp-hostsfile={}'.format(defaults['hostsfile']))
         self.dnsmasqPopen = subprocess.Popen(['dnsmasq', opts])
 
 
-    def restart():
+    def restart(self):
         self.dnsmasqPopen.send_signal(SIGHUP)
 
     
@@ -1775,20 +1776,17 @@ class DHCPNode( Node ):
         #expirytime = datetime.now() + timedelta(hours = expiry)
         expirytime = 1713751373
 
-        with open(self.dhcpleasefile) as dhcpconf:
-            text = dhcpconf.read()
-        with open(self.dhcpleasefile, 'a') as conf:
+        with open(self.hostsfile) as hostsconf:
+            text = hostsconf.read()
+        with open(self.hostsfile, 'a') as conf:
             if not text.endswith('\n'):
                 conf.write('\n')
-            conf.write(f'{str(expirytime)}, {mac}, {ip}, {hostname}, {clientID}\n')
+            conf.write('{},{}'.format(mac, ip))
 
         self.dhcptable.append({
             self.name: {
-                'expiry': expirytime,
                 'mac': mac,
-                'ip': ip,
-                'hostname': hostname,
-                'clientID': clientID
+                'ip': ip
             }
         })
 
