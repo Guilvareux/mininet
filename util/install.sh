@@ -837,6 +837,8 @@ function virtual_support {
         return
     fi
 
+    VIRTENABLED="$(egrep '(vmx|svm)' /proc/cpuinfo 2>&1 > /dev/null)"
+
     echo "Installing Virtual Host Support..."
 
     if [ "$HYPERVISOR" = "xen"] || [ "$HYPERVISOR" = "Xen"]; then
@@ -847,9 +849,11 @@ function virtual_support {
     else
         echo "Invalid parameter: '-z $HYPERVISOR'"
         return
+    fi
         
     $install libvirt-daemon-system python-libvirt /
         qemu-system dnsmasq
+    
 }
 
 function usage {
