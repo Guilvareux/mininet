@@ -1590,6 +1590,9 @@ class VNode( object ):
 
         self.name = name
         self.domID = None
+        self.vIPBase = '10.1.0.0/8'
+        self.vIPBaseNum, self.vPrefixLen = netParse( self.vIPBase )
+        self.nextVIP = 1
 
         self.ip = kwargs.get('ip')
         self.mac = kwargs.get('mac')
@@ -1609,9 +1612,12 @@ class VNode( object ):
             if self.mac == None:
                 print("No MAC")
                 #MAC = random mac
-            if self.ip != None:
+            if self.ip == None:
+                self.ip = ipAdd(self.nextIP,
+                                ipBaseNum=self.vIPBaseNum,
+                                prefixLen=self.prefixLen )
+                self.nextVIP += 1
                 #Call dnsmasq leasehandler
-                self.ip = '10.3.0.30'
                 #self.addLease( mac=self.mac, ip=self.ip )
 
             dom = self.createVM( domxml )
@@ -1639,6 +1645,8 @@ class VNode( object ):
             dom = conn.lookupByName(self.name)
             if dom != None:
                 print('Machine is running.')
+            else:
+                print('Machine is not running')
 
     def validateXML( self, domxml ):
         base = ET.parse(domxml)
@@ -1712,6 +1720,7 @@ class VNode( object ):
             target.shutdown()
             return True
 
+    """
     def IP( self ):
         "Return IP address"
         return self.ip
@@ -1719,3 +1728,68 @@ class VNode( object ):
     def MAC( self ):
         "Return MAC address"
         return self.mac
+    """
+
+
+class DHCPNode( Node ):
+
+    self.hostsfile = None
+    self.conffile = None
+    self.dnsmasqPopen = None
+
+    def __init__( self, **params ):
+        """
+        """
+        Node.__init__( self, name='dnsmasq')
+
+        defaults = {
+            'listenaddress': '10.1.0.0',
+            'dhcprange': '10.1.0.1,10.1.0.150',
+            'netmask': '255.255.255.0',
+            'leasetime': 1,
+            'conffile': '/etc/dnsmasq.conf',
+            'hostsfile': None
+        }
+        defaults.update( params )
+        self.hostsfile = defaults['hostsfile']
+        self.conffile = defaults['conffile']
+
+        start()
+        
+
+    def start():
+        opts = []
+        opts.append('--port=0')
+        opts.append(f'--dhcp-range={defaults['dhcprange']},static,{defauls['netmask']}')
+        opts.append(f'--conf-file={self.conffile}')
+        if defaults['hostsfile'] != None:
+            opts.append(f'--dhcp-hostsfile={defaults['hostsfile']}')
+        self.dnsmasqPopen = subprocess.Popen(['dnsmasq', opts])
+
+
+    def restart():
+        self.dnsmasqPopen.send_signal(SIGHUP)
+
+    
+    def addDHCPLease(self, mac, ip, expiry=1, hostname="*", clientID="*"):
+        #expirytime = datetime.now() + timedelta(hours = expiry)
+        expirytime = 1713751373
+
+        with open(self.dhcpleasefile) as dhcpconf:
+            text = dhcpconf.read()
+        with open(self.dhcpleasefile, 'a') as conf:
+            if not text.endswith('\n'):
+                conf.write('\n')
+            conf.write(f'{str(expirytime)}, {mac}, {ip}, {hostname}, {clientID}\n')
+
+        self.dhcptable.append({
+            self.name: {
+                'expiry': expirytime,
+                'mac': mac,
+                'ip': ip,
+                'hostname': hostname,
+                'clientID': clientID
+            }
+        })
+
+
