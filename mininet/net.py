@@ -100,7 +100,7 @@ from math import ceil
 from mininet.cli import CLI
 from mininet.log import info, error, debug, output, warn
 from mininet.node import ( Node, Host, OVSKernelSwitch, DefaultController,
-                           Controller, VNode )
+                           Controller, VNode, DHCPNode )
 from mininet.nodelib import NAT
 from mininet.link import Link, Intf
 from mininet.util import ( quietRun, fixLimits, numCores, ensureRoot,
@@ -1017,13 +1017,23 @@ class Virtualnet( Mininet ):
     self.dhcptable = {}
     self.vnodes = []
     
+    
     #Will be deprecated with container dnsmasq instance
     # **Planned feature**
     self.dhcpleasefile = '/var/lib/misc/dnsmasq.leases'
+    self.defaultVMSwitch = 'vm-switch'
 
 
     def __init__( self, **params ):
         Mininet.__init__( self, **params )
+
+        defaults = {
+            'dhcp': True,
+        }
+        defaults.update( params )
+        if defaults['dhcp'] == True:
+            self.dhcpNode = DHCPNode()
+
         
     def addVNode( self, domxml, **params):
         """Add a virtual node to the Mininet network
@@ -1031,11 +1041,19 @@ class Virtualnet( Mininet ):
         """
         defaults = {
             'ip': None,
-            'mac': None
+            'mac': None,
+            'dhcp': True,
+            'switch': self.defaultVMSwitch
         }
         default.update( params )
         if defaults['mac'] == None:
             defaults['mac'] = randMac()
+        if defaults['dhcp'] != False:
+            if defaults['ip'] != None:
+                self.dhcpNode.addLease(defaults['mac'], defaults['ip'])
+            else:
+                #get next available ip
+                #Call addlease
 
         v = VNode(domxml, defaults)
         self.vnodes.append( v )
@@ -1061,27 +1079,10 @@ class Virtualnet( Mininet ):
             mac2: mac address of second node
         """
         print("WIP")
-    
-    def addDHCPLease(self, mac, ip, expiry=1, hostname="*", clientID="*"):
-        #expirytime = datetime.now() + timedelta(hours = expiry)
-        expirytime = 1713751373
 
-        with open(self.dhcpleasefile) as dhcpconf:
-            text = dhcpconf.read()
-        with open(self.dhcpleasefile, 'a') as conf:
-            if not text.endswith('\n'):
-                conf.write('\n')
-            conf.write(f'{str(expirytime)}, {mac}, {ip}, {hostname}, {clientID}\n')
-
-        self.dhcptable.append({
-            self.name: {
-                'expiry': expirytime,
-                'mac': mac,
-                'ip': ip,
-                'hostname': hostname,
-                'clientID': clientID
-            }
-        })
+    def setupVMSwitch():
+        #Setup separate switch for vms
+        
 
     
     
