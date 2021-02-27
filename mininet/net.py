@@ -1060,7 +1060,7 @@ class Virtualnet( Mininet ):
         """
         print("WIP")
 
-
+    '''
     def addVLink( self, node1, node2, mac1, mac2,
                  **params ):
         """Links in Virtualnet are actually openflow mods.
@@ -1077,7 +1077,7 @@ class Virtualnet( Mininet ):
 
     def setupVMSwitch():
         #Setup separate switch for vms
-        
+    '''    
 
     
     
