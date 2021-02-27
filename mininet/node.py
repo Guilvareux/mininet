@@ -1704,7 +1704,7 @@ class VNode( object ):
         try:
             if hyperv == 'kvm':
                 hyperv = 'qemu'
-            conn = libvirt.open(f'{hyperv}+unix:///')
+            conn = libvirt.open('{}+unix:///'.format(hyperv))
             return conn
         except:
             print('Failed to acquire connection to hypervisor')
