@@ -1048,6 +1048,7 @@ class Virtualnet( Mininet ):
             else:
                 #get next available ip
                 #Call addlease
+                print('WIP')
 
         v = VNode(domxml, defaults)
         self.vnodes.append( v )
