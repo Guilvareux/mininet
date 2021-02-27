@@ -1014,18 +1014,17 @@ class Virtualnet( Mininet ):
     and VM ip configuration with DHCP (dnsmasq)
     """
 
-    self.dhcptable = {}
-    self.vnodes = []
-    
-    
-    #Will be deprecated with container dnsmasq instance
-    # **Planned feature**
-    self.dhcpleasefile = '/var/lib/misc/dnsmasq.leases'
-    self.defaultVMSwitch = 'vm-switch'
-
-
     def __init__( self, **params ):
         Mininet.__init__( self, **params )
+
+        self.dhcptable = {}
+        self.vnodes = []
+
+
+        #Will be deprecated with container dnsmasq instance
+        # **Planned feature**
+        self.dhcpleasefile = '/var/lib/misc/dnsmasq.leases'
+        self.defaultVMSwitch = 'vm-switch'
 
         defaults = {
             'dhcp': True,
