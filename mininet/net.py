@@ -91,11 +91,12 @@ import re
 import select
 import signal
 import random
-
+import xml.dom.minidom as minidom
 from time import sleep
 from itertools import chain, groupby
 from math import ceil
-
+from xml.etree import ElementTree as ET
+from subprocess import Popen
 from mininet.cli import CLI
 from mininet.log import info, error, debug, output, warn
 from mininet.node import ( Node, Host, OVSKernelSwitch, DefaultController,
@@ -1006,6 +1007,8 @@ class Virtualnet( Mininet ):
     """
     A Mininet with Virtual Machine support (Libvirt)
     and VM ip configuration with DHCP (dnsmasq)
+    self.vIPBase = '10.1.0.0/8'
+    #self.vIPBaseNum, self.vPrefixLen = self.netParse( self.vIPBase )
     """
 
     def __init__( self, **params ):
@@ -1013,7 +1016,6 @@ class Virtualnet( Mininet ):
 
         self.dhcptable = {}
         self.vnodes = []
-
 
         #Will be deprecated with container dnsmasq instance
         # **Planned feature**
@@ -1028,28 +1030,37 @@ class Virtualnet( Mininet ):
             self.dhcpNode = DHCPNode()
 
         
-    def addVNode( self, domxml, **params):
+    def addVNode( self, name, domxml, **params):
         """Add a virtual node to the Mininet network
            domxml: Path to libvirt xml file
         """
+        
+        if self.validateXML(domxml) == False:
+            return None
+
         defaults = {
             'ip': None,
             'mac': None,
             'dhcp': True,
-            'switch': self.defaultVMSwitch
+            'switchname': self.defaultVMSwitch
         }
-        default.update( params )
+        defaults.update( params )
+        #domTree = ET.parse( domxml )
+        domTree = minidom.parse( domxml )
         if defaults['mac'] == None:
-            defaults['mac'] = randMac()
-        if defaults['dhcp'] != False:
-            if defaults['ip'] != None:
-                self.dhcpNode.addLease(defaults['mac'], defaults['ip'])
-            else:
-                #get next available ip
-                #Call addlease
-                print('WIP')
+            defaults['mac'] = self.randMac()
+        if defaults['ip'] == None:
+            defaults['ip'] = '10.0.1.1/8'
+        if defaults['dhcp'] == True:
+            self.dhcpNode.addDHCPHost(defaults['mac'], defaults['ip'])
+        else:
+            #get next available ip
+            #Call addDHCPHost
+            print('ADDVNODE: WIP')
 
-        v = VNode(domxml, defaults)
+        v = VNode(name, domTree, **defaults)
+        if v == None:
+            print("NODE DEAD")
         self.vnodes.append( v )
         return v
 
@@ -1057,7 +1068,21 @@ class Virtualnet( Mininet ):
         """
         Remove VNode at runtime
         """
-        print("WIP")
+        print("REMOVENODE: WIP")
+
+    def validateXML( self, domxml ):
+        base = ET.parse(domxml)
+        root = base.getroot()
+        result = Popen(['virt-xml-validate', domxml]).wait()
+        if result == 0:
+            debug("VIRT-XML-VALIDATE: {}".format(result))
+            return True
+        else:
+            #Forward Error message from virt-xml-validate: todo
+            print( 'Error: XML File Invalid' )
+            debug("VIRT-XML-VALIDATE: {}".format(result))
+            return False
+
 
     '''
     def addVLink( self, node1, node2, mac1, mac2,
