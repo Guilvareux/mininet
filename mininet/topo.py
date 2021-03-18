@@ -148,6 +148,16 @@ class Topo( object ):
         result = self.addNode( name, isSwitch=True, **opts )
         return result
 
+    def addVNode( self, name, domxml, **opts ):
+        """Convenience method: Add switch to graph.
+           name: vnode name
+           domxml: path to domxml file
+           opts: vnode options
+           returns: vnode name"""
+
+        result = self.addNode( name, domxml=domxml, isVNode=True, **opts )
+        return result
+
     def addLink( self, node1, node2, port1=None, port2=None,
                  key=None, **opts ):
         """node1, node2: nodes to link together
