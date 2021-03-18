@@ -1588,7 +1588,7 @@ class VNode( object ):
     mininet via an OpenVSwitch bridge. """
 
     def __init__( self, name, domTree, **kwargs ):
-        
+
         self.name = name
         self.domID = None
         self.nextVIP = 1
@@ -1597,8 +1597,10 @@ class VNode( object ):
         self.switchname = kwargs.get( 'switchname' )
         self.hyperv = self.getHypervisor( domTree )
         self.insertInterface( domTree, self.mac, self.switchname )
-        domstring = domTree.toxml(encoding="utf-8")
-        #domstring = ET.tostring( domTree.getroot(), encoding="utf-8", method="xml" )
+        self.XML = domTree.firstChild.toxml()
+
+        """    
+        domstring = domTree.firstChild.toxml()
         dom = self.createVM( domstring )
         if dom == None and dom.ID() != -1:
             print('Failed to create host')
@@ -1606,15 +1608,33 @@ class VNode( object ):
         else:
             self.domID = dom.ID()
             print('Node succesfully started')
+        """
+
+
+    def start( self ):
+        dom = self.createVM( self.XML )
+        if dom == None and dom.ID() != -1:
+            print('Failed to create host')
+            return None
+        else:
+            self.domID = dom.ID()
+            print('Node succesfully started')
+        
 
 
     def terminate( self ):
-        #self.unmountPrivateDirs()
-        if self.shell:
-            if self.shell.poll() is None:
-                self.shell.terminate()
-                vmlib.destroy(self.name)
-        #self.cleanup()
+        conn = self.getLibvirtConn()
+        #dom = conn.lookupByName( self.name )
+        dom = conn.lookupByID(self.domID)
+        if dom != None:
+            dom.destroy()
+        else:
+            debug( "Unable to find VM: {}".format( self.name ))
+        """
+        if dom == None:
+            debug( "{} successfully destroyed".format( self.name ))
+        """
+
 
     def getHypervisor( self, domTree ):
         hypervisor = domTree.firstChild.getAttribute('type')
@@ -1625,7 +1645,7 @@ class VNode( object ):
         return None
 
     
-    def insertInterface( self, domTree, mac, switchname):
+    def insertInterface( self, domTree, mac_addr, switchname):
         name = domTree.getElementsByTagName('name')
         name[0].value = self.name
         devices = domTree.getElementsByTagName('devices')
@@ -1636,64 +1656,27 @@ class VNode( object ):
         virtualport = domTree.createElement('virtualport')
         virtualport.setAttribute('type', 'openvswitch')
         mac = domTree.createElement('mac')
-        mac.setAttribute('address', mac)
+        mac.setAttribute('address', str(mac_addr))
         devices[0].appendChild(l)
         l.appendChild(source)
         l.appendChild(virtualport)
         l.appendChild(mac)
         
-    
-    """
-    def insertInterface( self, domTree, mac, switchname ):
-        root = domTree.getroot()
-        root.find('name').text = self.name
-        devices = root.find( 'devices' )
-        dintf = ET.SubElement( devices, 'interface' )
-        dintf.set( 'type', 'bridge' )
-        dintfsrc = ET.SubElement( dintf, 'source' )
-        dintfsrc.set( 'bridge', switchname )
-        dintfport = ET.SubElement( dintf, 'virtualport' )
-        dintfport.set( 'type', 'openvswitch' )
-        dintfmac = ET.SubElement( dintf, 'mac' )
-        dintfmac.set( 'address', mac )
-    """
-        
+
     def _is_machine_running( self ):
         conn = vmlib.self.getLibvirtConn()
         if conn == None:
             print( 'Failed to open connection to libvirtd' )
         else:
-            dom = conn.lookupByName(self.name)
+            #dom = conn.lookupByName(self.name)
+            dom = conn.lookupByID(self.domID)
             if dom != None:
                 print( 'Machine is running.' )
             else:
                 print( 'Machine is not running' )
-    """
-    def getXMLInfo( self, domxml ):
-        base = ET.parse(domxml)
-        root = base.getroot()
-        self.name = root.find('name').text
-        self.mac = root.find('devices').find('interface').find('mac').get('address')
-        hypervisor = root.get('type')
-        if hypervisor.upper() == 'XEN':
-            self.hyperv = 'xen'
-        elif hypervisor.upper() == 'KVM':
-            self.hyperv = 'kvm'
-        else:
-            print('Error: Unknown Hypervisor')
-    
-    def createVM( self, domxml ):
-        conn = self.getLibvirtConn()
-        with open(domxml, 'r') as domstring:
-            domfile = domstring.read()
-            guest = conn.createXML(domfile, 0)
-            if guest != None:
-                print('Node successfully created')
-        return guest
-    """
+
 
     def createVM( self, domstring):
-        debug(domstring)
         conn = self.getLibvirtConn()
         guest = conn.createXML(domstring, 0)
         if guest != None:
@@ -1714,43 +1697,6 @@ class VNode( object ):
         except:
             print('Failed to acquire connection to hypervisor')
             sys.exit(1)
-        
-    
-
-    """
-    def MAC( self ):
-        conn = self.getLibvirtConn()
-        target = lookupByName( self.name )
-        if target == None:
-            print('Error: Target VM not found')
-            return False
-        raw_XML = target.XMLDesc(0)
-        conn.close()
-        xml = ET.parse(raw_XML)
-        root = xml.getroot()
-        return root.find('mac').get('address')
-    
-    def terminate():
-        conn = self.getLibvirtConn()
-        target = conn.lookupByName(self.name)
-        if target == None:
-            print('Error: Host not found')
-            conn.close()
-            return False
-        else:
-            target.shutdown()
-            conn.close()
-            return True
-
-    
-    def IP( self ):
-        "Return IP address"
-        return self.ip
-
-    def MAC( self ):
-        "Return MAC address"
-        return self.mac
-    """
 
 
 class DHCPNode( Node ):
@@ -1766,9 +1712,9 @@ class DHCPNode( Node ):
 
         defaults = {
             'listenaddress': '10.1.0.0',
-            'dhcprange': '10.1.0.1,10.1.0.150',
+            'dhcprange': '10.1.0.0',
             'netmask': '255.255.255.0',
-            'leasetime': 1,
+            'leasetime': '1h',
             'conffile': '/etc/dnsmasq.conf',
             'hostsfile': '/root/hosts'
         }

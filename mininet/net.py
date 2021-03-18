@@ -1007,7 +1007,7 @@ class Virtualnet( Mininet ):
     """
     A Mininet with Virtual Machine support (Libvirt)
     and VM ip configuration with DHCP (dnsmasq)
-    self.vIPBase = '10.1.0.0/8'
+    self.vIPBase = '10.0.1.0/8'
     #self.vIPBaseNum, self.vPrefixLen = self.netParse( self.vIPBase )
     """
 
@@ -1026,6 +1026,7 @@ class Virtualnet( Mininet ):
             'dhcp': True,
         }
         defaults.update( params )
+        
         if defaults['dhcp'] == True:
             self.dhcpNode = DHCPNode()
 
@@ -1034,8 +1035,7 @@ class Virtualnet( Mininet ):
         """Add a virtual node to the Mininet network
            domxml: Path to libvirt xml file
         """
-        
-        if self.validateXML(domxml) == False:
+        if self.validateXML( domxml ) == False:
             return None
 
         defaults = {
@@ -1045,22 +1045,33 @@ class Virtualnet( Mininet ):
             'switchname': self.defaultVMSwitch
         }
         defaults.update( params )
-        #domTree = ET.parse( domxml )
+        
+        if not os.path.exists( domxml ):
+            debug("Path of DomXML file invalid")
+
         domTree = minidom.parse( domxml )
+    
+
         if defaults['mac'] == None:
             defaults['mac'] = self.randMac()
         if defaults['ip'] == None:
             defaults['ip'] = '10.0.1.1/8'
         if defaults['dhcp'] == True:
-            self.dhcpNode.addDHCPHost(defaults['mac'], defaults['ip'])
+            if self.dhcpNode != None:
+                self.dhcpNode.addDHCPHost(defaults['mac'], defaults['ip'])
+            else:
+                print('No DHCP Node does not exist')
         else:
             #get next available ip
             #Call addDHCPHost
             print('ADDVNODE: WIP')
 
+        
         v = VNode(name, domTree, **defaults)
+        """
         if v == None:
             print("NODE DEAD")
+        """
         self.vnodes.append( v )
         return v
 
@@ -1069,6 +1080,25 @@ class Virtualnet( Mininet ):
         Remove VNode at runtime
         """
         print("REMOVENODE: WIP")
+
+
+    def start( self ):
+        Mininet.start( self )
+        """
+        if self.dhcp == True:
+            info('*** Starting %s vnodes\n' % len( self.vnodes ))
+        """
+        info( '*** Starting %s vnodes\n' % len( self.vnodes ))
+        for vm in self.vnodes:
+            info( vm.name + ' ')
+            vm.start()
+
+    
+    def stop( self ):
+        Mininet.stop( self )
+        info( '*** Stopping %i vnodes\n' % len( self.vnodes ) )
+        for vm in self.vnodes:
+            vm.terminate()
 
     def validateXML( self, domxml ):
         base = ET.parse(domxml)
