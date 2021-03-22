@@ -1099,8 +1099,8 @@ class Virtualnet( Mininet ):
         defaults.update( params )
         if self.dhcpNode == None:
             self.dhcpNode = DHCPNode( **defaults )
-            self.dhcpNode.cmd(['ip', 'addr', 'add', '10.0.1.0/8', 'dev', 'dnsmasq-eth0'])
-            self.dhcpNode.cmd(['ip', 'addr', 'show'])
+            #self.dhcpNode.pexec(['ip', 'addr', 'add', '10.0.1.0/8', 'dev', 'dnsmasq-eth0'])
+            #print(self.dhcpNode.pexec(['ip', 'addr', 'show']))
             """
             intf = self.dhcpNode.defaultIntf()
             if intf:
@@ -1118,6 +1118,8 @@ class Virtualnet( Mininet ):
         if self.dhcpNode != None:
             info( '*** Starting DHCP node\n' )
             self.dhcpNode.start()
+            self.dhcpNode.pexec(['ip', 'addr', 'add', '10.0.1.0/8', 'dev', 'dnsmasq-eth0'])
+            print(self.dhcpNode.pexec(['ip', 'addr', 'show']))
         info( '*** Starting %s vnodes\n' % len( self.vnodes ) )
         for vm in self.vnodes:
             info( vm.name + ' ')
