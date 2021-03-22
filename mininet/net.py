@@ -1015,23 +1015,24 @@ class Virtualnet( Mininet ):
         Mininet.__init__( self, **params )
 
         self.dhcptable = {}
+        self.dhcpNode = None
         self.vnodes = []
-
-        #Will be deprecated with container dnsmasq instance
-        # **Planned feature**
-        self.dhcpleasefile = '/var/lib/misc/dnsmasq.leases'
         self.defaultVMSwitch = 'vm-switch'
 
         defaults = {
             'dhcp': True,
         }
         defaults.update( params )
-        
-        if defaults['dhcp'] == True:
+        """
+        self.dhcp = defaults[ 'dhcp' ]     
+        if defaults[ 'dhcp' ] == True:
             self.dhcpNode = DHCPNode()
+            """
+            #self.addLink( 's1', self.dhcpNode )
+        
 
         
-    def addVNode( self, name, domxml, **params):
+    def addVNode( self, name, domxml, **params ):
         """Add a virtual node to the Mininet network
            domxml: Path to libvirt xml file
         """
@@ -1040,6 +1041,7 @@ class Virtualnet( Mininet ):
 
         defaults = {
             'ip': None,
+            'mask': None,
             'mac': None,
             'dhcp': True,
             'switchname': self.defaultVMSwitch
@@ -1050,24 +1052,24 @@ class Virtualnet( Mininet ):
             debug("Path of DomXML file invalid")
 
         domTree = minidom.parse( domxml )
-    
-
         if defaults['mac'] == None:
             defaults['mac'] = self.randMac()
         if defaults['ip'] == None:
-            defaults['ip'] = '10.0.1.1/8'
+            defaults['ip'] = '10.0.1.1'
+        if defaults['mask'] == None:
+            defaults['mask'] == '/8'
         if defaults['dhcp'] == True:
             if self.dhcpNode != None:
-                self.dhcpNode.addDHCPHost(defaults['mac'], defaults['ip'])
+                self.dhcpNode.addDHCPHost( defaults[ 'mac' ], defaults[ 'ip' ] )
+                self.dhcpNode.update()
             else:
-                print('No DHCP Node does not exist')
+                print( 'No DHCP Node does not exist' )
         else:
             #get next available ip
             #Call addDHCPHost
-            print('ADDVNODE: WIP')
+            print( 'ADDVNODE: WIP' )
 
-        
-        v = VNode(name, domTree, **defaults)
+        v = VNode( name, domTree, **defaults )
         """
         if v == None:
             print("NODE DEAD")
@@ -1075,63 +1077,63 @@ class Virtualnet( Mininet ):
         self.vnodes.append( v )
         return v
 
-    def removeVNode( self, name, **params ):
+    def delVNode( self, name, **params ):
         """
         Remove VNode at runtime
         """
         print("REMOVENODE: WIP")
 
+    
+    def addDHCPNode( self, switchname, name='dhcp', **params ):
+        defaults = {
+            'ip': '10.0.1.0/8',
+            'mac': self.randMac()
+        }
+        defaults.update( params )
+        if self.dhcpNode == None:
+            self.dhcpNode = DHCPNode( **defaults )
+            self.dhcpNode.cmd(['ip', 'addr', 'add', '10.0.1.0/8', 'dev', 'dnsmasq-eth0'])
+            self.dhcpNode.cmd(['ip', 'addr', 'show'])
+            """
+            intf = self.dhcpNode.defaultIntf()
+            if intf:
+                self.dhcpNode.configDefault()
+            self.dhcpNode.configDefault(**defaults)
+            """
+            self.nameToNode[ name ] = self.dhcpNode
+            return self.dhcpNode
+        else:
+            print( "DHCP Node already present" )
+            print( "Currently only one DHCP Node is supported" )
 
     def start( self ):
         Mininet.start( self )
-        """
-        if self.dhcp == True:
-            info('*** Starting %s vnodes\n' % len( self.vnodes ))
-        """
-        info( '*** Starting %s vnodes\n' % len( self.vnodes ))
+        if self.dhcpNode != None:
+            info( '*** Starting DHCP node\n' )
+            self.dhcpNode.start()
+        info( '*** Starting %s vnodes\n' % len( self.vnodes ) )
         for vm in self.vnodes:
             info( vm.name + ' ')
             vm.start()
-
     
     def stop( self ):
+        print('STOP STOP STOP STOP STOP')
         Mininet.stop( self )
         info( '*** Stopping %i vnodes\n' % len( self.vnodes ) )
         for vm in self.vnodes:
             vm.terminate()
 
     def validateXML( self, domxml ):
-        base = ET.parse(domxml)
+        base = ET.parse( domxml )
         root = base.getroot()
-        result = Popen(['virt-xml-validate', domxml]).wait()
+        result = Popen( [ 'virt-xml-validate', domxml ] ).wait()
         if result == 0:
-            debug("VIRT-XML-VALIDATE: {}".format(result))
+            #debug( "VIRT-XML-VALIDATE: {}".format( result ) )
             return True
         else:
             #Forward Error message from virt-xml-validate: todo
             print( 'Error: XML File Invalid' )
-            debug("VIRT-XML-VALIDATE: {}".format(result))
             return False
-
-
-    '''
-    def addVLink( self, node1, node2, mac1, mac2,
-                 **params ):
-        """Links in Virtualnet are actually openflow mods.
-            All Virtual nodes are connected by an OVSSwitch
-            bridge, which disables all traffic by default.
-            a link is a flow mod which allows traffic between
-            two VNodes.
-            node1: first node ip address
-            node2: second node ip address
-            mac1: mac address of first node
-            mac2: mac address of second node
-        """
-        print("WIP")
-
-    def setupVMSwitch():
-        #Setup separate switch for vms
-    '''    
 
     
     
