@@ -1606,51 +1606,40 @@ class VNode( object ):
         self.domID = None
         self.nextVIP = 1
         self.ip = kwargs.get( 'ip' )
+        self.mask = kwargs.get( 'mask' )
         self.mac = kwargs.get( 'mac' )
         self.switchname = kwargs.get( 'switchname' )
         self.hyperv = self.getHypervisor( domTree )
         self.insertInterface( domTree, self.mac, self.switchname )
         self.XML = domTree.firstChild.toxml()
 
-        """    
-        domstring = domTree.firstChild.toxml()
-        dom = self.createVM( domstring )
-        if dom == None and dom.ID() != -1:
-            print('Failed to create host')
-            return None
-        else:
-            self.domID = dom.ID()
-            print('Node succesfully started')
-        """
-
 
     def start( self ):
         dom = self.createVM( self.XML )
         if dom == None and dom.ID() != -1:
-            print('Failed to create host')
+            print( 'Failed to create host' )
             return None
         else:
             self.domID = dom.ID()
-            print('Node succesfully started')
+            print( 'Node succesfully started' )
         
-
 
     def terminate( self ):
         conn = self.getLibvirtConn()
         #dom = conn.lookupByName( self.name )
-        dom = conn.lookupByID(self.domID)
+        dom = conn.lookupByID( self.domID )
         if dom != None:
             dom.destroy()
         else:
-            debug( "Unable to find VM: {}".format( self.name ))
+            debug( "Unable to find VM: {}".format( self.name ) )
         """
         if dom == None:
-            debug( "{} successfully destroyed".format( self.name ))
+            debug( "{} successfully destroyed".format( self.name ) )
         """
 
 
     def getHypervisor( self, domTree ):
-        hypervisor = domTree.firstChild.getAttribute('type')
+        hypervisor = domTree.firstChild.getAttribute( 'type' )
         if hypervisor.upper() == 'XEN':
             return 'xen'
         elif hypervisor.upper() == 'KVM':
@@ -1659,21 +1648,21 @@ class VNode( object ):
 
     
     def insertInterface( self, domTree, mac_addr, switchname):
-        name = domTree.getElementsByTagName('name')
+        name = domTree.getElementsByTagName( 'name' )
         name[0].value = self.name
-        devices = domTree.getElementsByTagName('devices')
-        l = domTree.createElement('interface')
-        l.setAttribute('type', 'bridge')
-        source = domTree.createElement('source')
-        source.setAttribute('bridge', switchname)
-        virtualport = domTree.createElement('virtualport')
-        virtualport.setAttribute('type', 'openvswitch')
-        mac = domTree.createElement('mac')
-        mac.setAttribute('address', str(mac_addr))
-        devices[0].appendChild(l)
-        l.appendChild(source)
-        l.appendChild(virtualport)
-        l.appendChild(mac)
+        devices = domTree.getElementsByTagName( 'devices' )
+        l = domTree.createElement( 'interface' )
+        l.setAttribute( 'type', 'bridge' )
+        source = domTree.createElement( 'source' )
+        source.setAttribute( 'bridge', switchname )
+        virtualport = domTree.createElement( 'virtualport' )
+        virtualport.setAttribute( 'type', 'openvswitch' )
+        mac = domTree.createElement( 'mac' )
+        mac.setAttribute( 'address', str( mac_addr ) )
+        devices[0].appendChild( l )
+        l.appendChild( source )
+        l.appendChild( virtualport )
+        l.appendChild( mac )
         
 
     def _is_machine_running( self ):
@@ -1682,18 +1671,18 @@ class VNode( object ):
             print( 'Failed to open connection to libvirtd' )
         else:
             #dom = conn.lookupByName(self.name)
-            dom = conn.lookupByID(self.domID)
+            dom = conn.lookupByID( self.domID )
             if dom != None:
                 print( 'Machine is running.' )
             else:
                 print( 'Machine is not running' )
 
 
-    def createVM( self, domstring):
+    def createVM( self, domstring ):
         conn = self.getLibvirtConn()
-        guest = conn.createXML(domstring, 0)
+        guest = conn.createXML( domstring, 0 )
         if guest != None:
-            print('Node successfully created')
+            print( 'Node successfully created' )
         return guest
 
 
@@ -1705,10 +1694,10 @@ class VNode( object ):
         try:
             if hyperv == 'kvm':
                 hyperv = 'qemu'
-            conn = libvirt.open('{}+unix:///'.format(hyperv))
+            conn = libvirt.open( '{}+unix:///'.format( hyperv ) )
             return conn
         except:
-            print('Failed to acquire connection to hypervisor')
+            print( 'Failed to acquire connection to hypervisor' )
             sys.exit(1)
 
 
@@ -1717,55 +1706,48 @@ class DHCPNode( Node ):
     def __init__( self, **params ):
         """
         """
-
-        Node.__init__( self, name='dnsmasq')
-
-        self.dnsmasqPopen = None
-        self.dhcptable = {}
-
-        defaults = {
-            'listenaddress': '10.1.0.0',
-            'dhcprange': '10.1.0.0',
-            'netmask': '255.255.255.0',
+        self.defaults = {
+            'dhcprange': '10.0.1.150',
+            'netmask': '255.0.0.0',
             'leasetime': '1h',
             'conffile': '/etc/dnsmasq.conf',
-            'hostsfile': '/root/hosts'
+            'hostsfile': '/root/hosts',
+            'switchname': 's1'
         }
-        defaults.update( params )
-        self.hostsfile = defaults['hostsfile']
-        self.conffile = defaults['conffile']
+        self.defaults.update( params )
+        Node.__init__( self, name='dnsmasq', **self.defaults )
+        self.dnsmasqPopen = None
+        self.dhcptable = {}
+        self.hostsfile = self.defaults[ 'hostsfile' ]
+        self.conffile = self.defaults[ 'conffile' ]       
 
-        self.start(defaults)
-        
+    def start( self, **defaults ):
+        opts = [ 'dnsmasq' ]
+        opts.append( '--port=0' )
+        opts.append( '--dhcp-range={},static,{}'.format( self.defaults[ 'dhcprange' ], self.defaults[ 'netmask' ] ) )
+        opts.append( '--conf-file={}'.format( self.conffile ) )
+        if self.defaults[ 'hostsfile' ] != None:
+            opts.append( '--dhcp-hostsfile={}'.format( self.defaults[ 'hostsfile' ] ) )
+        self.dnsmasqPopen = Node.popen( self, opts )
+        print(self.pexec(['ip', 'addr', 'show']))
 
-    def start(self, defaults):
-        opts = ['dnsmasq']
-        opts.append('--port=0')
-        opts.append('--dhcp-range={},static,{}'.format(defaults['dhcprange'],defaults['netmask']))
-        opts.append('--conf-file={}'.format(self.conffile))
-        if defaults['hostsfile'] != None:
-            opts.append('--dhcp-hostsfile={}'.format(defaults['hostsfile']))
-        self.dnsmasqPopen = Popen(opts)
-
-
-    def restart(self):
-        self.dnsmasqPopen.send_signal(SIGHUP)
-
+    def update( self ):
+        if self.dnsmasqPopen != None:
+            self.dnsmasqPopen.send_signal( SIGHUP )
     
-    def addDHCPHost(self, mac, ip, expiry=1, hostname="*", clientID="*"):
+    def addDHCPHost( self, mac, ip, expiry=1, hostname="*", clientID="*" ):
         #expirytime = datetime.now() + timedelta(hours = expiry)
         expirytime = 1713751373
-
-        with open(self.hostsfile) as hostsconf:
+        with open( self.hostsfile ) as hostsconf:
             text = hostsconf.read()
-        with open(self.hostsfile, 'a') as conf:
-            if not text.endswith('\n'):
-                conf.write('\n')
-            conf.write('{},{}'.format(mac, ip))
-
-        self.dhcptable[self.name] = {
+        with open( self.hostsfile, 'a' ) as conf:
+            if not text.endswith( '\n' ):
+                conf.write( '\n' )
+            conf.write( '{} {}'.format( mac, ip ) )
+        self.dhcptable[ self.name ] = {
             'mac': mac,
             'ip': ip
         }
+        self.update()
 
 
