@@ -1694,7 +1694,7 @@ class DHCPNode( Node ):
         """
         """
         self.defaults = {
-            'dhcprange': '10.0.1.150',
+            'dhcprange': '10.0.1.1, 10.0.1.150',
             'netmask': '255.0.0.0',
             'leasetime': '1h',
             'conffile': '/etc/dnsmasq.conf',
@@ -1711,12 +1711,15 @@ class DHCPNode( Node ):
     def start( self, **defaults ):
         opts = [ 'dnsmasq' ]
         opts.append( '--port=0' )
-        opts.append( '--dhcp-range={},static,{}'.format( self.defaults[ 'dhcprange' ], self.defaults[ 'netmask' ] ) )
+        opts.append( '--dhcp-range={},{}'.format( self.defaults[ 'dhcprange' ], self.defaults[ 'netmask' ] ) )
         opts.append( '--conf-file={}'.format( self.conffile ) )
         if self.defaults[ 'hostsfile' ] != None:
             opts.append( '--dhcp-hostsfile={}'.format( self.defaults[ 'hostsfile' ] ) )
-        self.dnsmasqPopen = Node.popen( self, opts )
-        print(self.pexec(['ip', 'addr', 'show']))
+        self.dnsmasqPopen = self.popen(opts)
+        out, err = self.dnsmasqPopen.communicate()
+        exitcode = self.dnsmasqPopen.wait()
+        print(out, err)
+        print(exitcode)
 
     def update( self ):
         if self.dnsmasqPopen != None:
