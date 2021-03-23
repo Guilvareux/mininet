@@ -841,18 +841,21 @@ function virtual_support {
 
     echo "Installing Virtual Host Support..."
 
-    if [ "$HYPERVISOR" = "xen"] || [ "$HYPERVISOR" = "Xen"]; then
+    if [ "$HYPERVISOR" = "xen" ] || [ "$HYPERVISOR" = "Xen" ]; then
         echo "Installing Xen Hypervisor..."
         $install xen-system
-    elif [ "$HYPERVISOR" = "kvm"] || [ "$HYPERVISOR" = "KVM"]; then
+    elif [ "$HYPERVISOR" = "kvm" ] || [ "$HYPERVISOR" = "KVM" ]; then
         echo "Installing KVM Hypervisor..."
     else
         echo "Invalid parameter: '-z $HYPERVISOR'"
         return
     fi
+
+    if [ "$DIST" != "Debian" ]; then
+        $install python-libvirt python3-libvirt
+    fi
         
-    $install libvirt-daemon-system python-libvirt /
-        qemu-system dnsmasq
+    $install libvirt-daemon-system qemu-system dnsmasq
     
 }
 
