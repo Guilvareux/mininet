@@ -814,7 +814,7 @@ function virtual_support {
         return
     fi
 
-    if [ "$DIST" != "Debian" ]; then
+    if [ "$DIST" == "Debian" ]; then
         $install python-libvirt python3-libvirt
     fi
         
