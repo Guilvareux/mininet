@@ -53,6 +53,7 @@ Future enhancements:
 """
 
 import os
+import sys
 import pty
 import re
 import signal
