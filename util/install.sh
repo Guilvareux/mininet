@@ -815,7 +815,7 @@ function virtual_support {
     fi
 
     if [ "$DIST" == "Debian" ]; then
-        $install python-libvirt python3-libvirt
+        $install python-libvirt python3-libvirt net-tools
     fi
         
     $install libvirt-daemon-system qemu-system dnsmasq
