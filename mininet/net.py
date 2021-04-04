@@ -1010,26 +1010,18 @@ class Virtualnet( Mininet ):
     self.vIPBase = '10.0.1.0/8'
     #self.vIPBaseNum, self.vPrefixLen = self.netParse( self.vIPBase )
     """
-
     def __init__( self, **params ):
         Mininet.__init__( self, **params )
-
         self.dhcptable = {}
         self.dhcpNode = None
         self.vnodes = []
         self.defaultVMSwitch = 'vm-switch'
-
+        """
         defaults = {
             'dhcp': True,
         }
         defaults.update( params )
         """
-        self.dhcp = defaults[ 'dhcp' ]     
-        if defaults[ 'dhcp' ] == True:
-            self.dhcpNode = DHCPNode()
-            """
-            #self.addLink( 's1', self.dhcpNode )
-        
 
         
     def addVNode( self, name, domxml, **params ):
@@ -1049,39 +1041,25 @@ class Virtualnet( Mininet ):
         defaults.update( params )
         
         if not os.path.exists( domxml ):
-            debug("Path of DomXML file invalid")
+            debug( "Path of DomXML file invalid" )
 
         domTree = minidom.parse( domxml )
-        if defaults['mac'] == None:
-            defaults['mac'] = self.randMac()
-        if defaults['ip'] == None:
-            defaults['ip'] = '10.0.1.1'
-        if defaults['mask'] == None:
-            defaults['mask'] == '/8'
-        if defaults['dhcp'] == True:
+        if defaults[ 'mac' ] == None:
+            defaults[ 'mac' ] = self.randMac()
+        if defaults[ 'ip' ] == None:
+            defaults[ 'ip' ] = '10.0.1.1'
+        if defaults[ 'mask' ] == None:
+            defaults[ 'mask' ] == '/8'
+        if defaults[ 'dhcp' ] == True:
             if self.dhcpNode != None:
-                self.dhcpNode.addDHCPHost( defaults[ 'mac' ], defaults[ 'ip' ] )
+                self.dhcpNode.addHost( defaults[ 'mac' ], defaults[ 'ip' ] )
                 self.dhcpNode.update()
             else:
-                print( 'No DHCP Node does not exist' )
-        else:
-            #get next available ip
-            #Call addDHCPHost
-            print( 'ADDVNODE: WIP' )
+                warn( 'No DHCP Node does not exist' )
 
         v = VNode( name, domTree, **defaults )
-        """
-        if v == None:
-            print("NODE DEAD")
-        """
         self.vnodes.append( v )
         return v
-
-    def delVNode( self, name, **params ):
-        """
-        Remove VNode at runtime
-        """
-        print("REMOVENODE: WIP")
 
     
     def addDHCPNode( self, switchname, name='dhcp', **params ):
@@ -1092,19 +1070,11 @@ class Virtualnet( Mininet ):
         defaults.update( params )
         if self.dhcpNode == None:
             self.dhcpNode = DHCPNode( **defaults )
-            #self.dhcpNode.pexec(['ip', 'addr', 'add', '10.0.1.0/8', 'dev', 'dnsmasq-eth0'])
-            #print(self.dhcpNode.pexec(['ip', 'addr', 'show']))
-            """
-            intf = self.dhcpNode.defaultIntf()
-            if intf:
-                self.dhcpNode.configDefault()
-            self.dhcpNode.configDefault(**defaults)
-            """
             self.nameToNode[ name ] = self.dhcpNode
             return self.dhcpNode
         else:
-            print( "DHCP Node already present" )
-            print( "Currently only one DHCP Node is supported" )
+            debug( "DHCP Node already present" )
+            debug( "Currently only one DHCP Node is supported" )
 
     def start( self ):
         Mininet.start( self )
@@ -1112,14 +1082,13 @@ class Virtualnet( Mininet ):
             info( '*** Starting DHCP node\n' )
             self.dhcpNode.start()
             self.dhcpNode.pexec(['ip', 'addr', 'add', '10.0.1.0/8', 'dev', 'dnsmasq-eth0'])
-            print(self.dhcpNode.pexec(['ip', 'addr', 'show']))
         info( '*** Starting %s vnodes\n' % len( self.vnodes ) )
         for vm in self.vnodes:
             info( vm.name + ' ')
             vm.start()
     
     def stop( self ):
-        print('STOP STOP STOP STOP STOP')
+        "Terminate all running VMs in topology"
         Mininet.stop( self )
         info( '*** Stopping %i vnodes\n' % len( self.vnodes ) )
         for vm in self.vnodes:
