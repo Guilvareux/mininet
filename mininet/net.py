@@ -91,8 +91,6 @@ import re
 import select
 import signal
 import random
-
-from sys import exit  # pylint: disable=redefined-builtin
 import xml.dom.minidom as minidom
 from time import sleep
 from itertools import chain, groupby

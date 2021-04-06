@@ -231,9 +231,6 @@ like to contribute an installation script, we would welcome it!)
 
           docker build --rm -f util/docker/Dockerfile -t mininet:local .
 
-As always, please feel free to submit issues or pull requests for
-installation-related features.
-
 Good luck, and have fun!
 
 Mininet Developers
